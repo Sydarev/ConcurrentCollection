@@ -2,102 +2,38 @@ package ru.netology;
 
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class Main {
-    public static final ArrayBlockingQueue<String> queueA = new ArrayBlockingQueue<>(100);
-    public static final ArrayBlockingQueue<String> queueB = new ArrayBlockingQueue<>(100);
-    public static final ArrayBlockingQueue<String> queueC = new ArrayBlockingQueue<>(100);
+    public static final BlockingQueue<String> queueA = new ArrayBlockingQueue<>(100);
+    public static final BlockingQueue<String> queueB = new ArrayBlockingQueue<>(100);
+    public static final BlockingQueue<String> queueC = new ArrayBlockingQueue<>(100);
+    public static Thread creator;
 
     public static void main(String[] args) {
-        Thread creator = new Thread(() -> {
-            for (int i = 0; i < 10_000; i++) {
-                String str = generateText("abc", 100_0);
+        creator = new Thread(() -> {
+            for (int i = 0; i < 10000; i++) {
+                String str = generateText("abc", 100000);
                 try {
                     queueA.put(str);
                     queueB.put(str);
                     queueC.put(str);
                 } catch (InterruptedException e) {
-                    return;
+                    e.printStackTrace();
                 }
             }
         });
         creator.start();
         try {
-            Thread.sleep(100);
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Thread threadA = new Thread(() -> {
-            int max = 0;
-            int res = 0;
-            String resStr = null;
-            String resMaxStr = null;
-                while (queueA.peek() != null) {
-                    try {
-                        resStr = queueA.take();
-                        res = resStr.chars()
-                                .filter(x -> x == 'a')
-                                .boxed()
-                                .toArray().length;
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    if (max < res) {
-                        max = res;
-                        resMaxStr = resStr;
-                    }
-                }
-            System.out.print("максимальное количество букв a: " + max);
-            System.out.println();
-        });
-        Thread threadB = new Thread(() -> {
-            int max = 0;
-            int res = 0;
-            String resStr = null;
-            String resMaxStr = null;
-                while (queueA.peek() != null) {
-                    try {
-                        resStr = queueB.take();
-                        res = resStr.chars()
-                                .filter(x -> x == 'b')
-                                .boxed()
-                                .toArray().length;
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    if (max < res) {
-                        max = res;
-                        resMaxStr = resStr;
-                    }
-                }
 
-            System.out.print("максимальное количество букв б: " + max);
-            System.out.println();
-        });
-        Thread threadC = new Thread(() -> {
-            int max = 0;
-            int res = 0;
-            String resStr = null;
-            String resMaxStr = null;
-            while (queueA.peek() != null) {
-                try {
-                    resStr = queueC.take();
-                    res = resStr.chars()
-                            .filter(x -> x == 'c')
-                            .boxed()
-                            .toArray().length;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                if (max < res) {
-                    max = res;
-                    resMaxStr = resStr;
-                }
-            }
+        Thread threadA = getThread(queueA, 'a');
+        Thread threadB = getThread(queueB, 'b');
+        Thread threadC = getThread(queueC, 'c');
 
-            System.out.print("максимальное количество букв c: " + max);
-            System.out.println();
-        });
 
         threadA.start();
         threadB.start();
@@ -106,9 +42,7 @@ public class Main {
             threadA.join();
             threadB.join();
             threadC.join();
-            creator.join();
-        } catch (
-                InterruptedException e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -123,10 +57,29 @@ public class Main {
         return text.toString();
     }
 
-    public static int findLetter(String str, char letter) {
-        return str.chars()
-                .filter(x -> x == letter)
-                .boxed()
-                .toArray().length;
+    public static Thread getThread(BlockingQueue<String> queue, char letter) {
+        return new Thread(() -> {
+            int i = getCount(queue, letter);
+            System.out.println("Max count of '" + letter + "' is: " + i);
+        });
+    }
+
+    public static int getCount(BlockingQueue<String> queue, char letter) {
+        int max = 0;
+        int res = 0;
+        String resStr;
+        try {
+            while (creator.isAlive()) {
+                resStr = queue.take();
+                for (char c : resStr.toCharArray()) {
+                    if (c == letter) res++;
+                }
+                if (max < res) max = res;
+                res = 0;
+            }
+        } catch (InterruptedException e) {
+            return -1;
+        }
+        return max;
     }
 }
